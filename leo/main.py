@@ -10,15 +10,20 @@ import pandas as pd
 
 from nltk.corpus import stopwords
 
+import os
+
+def pth(file_name):
+    """Short access to file path in data folder"""
+    return os.path.join('..', 'data', file_name)
 
 # Load data
-node_info = pd.read_csv('node_information.xls', header=None)
+node_info = pd.read_csv(pth('node_information.xls'), header=None)
 node_info.columns = ['id', 'date', 'title', 'authors', 'journal', 'abstract']
 
-train = pd.read_csv('training_set.txt', sep=' ', header=None)
+train = pd.read_csv(pth('training_set.txt'), sep=' ', header=None)
 train.columns = ['id1', 'id2', 'link']
 
-test = pd.read_csv('testing_set.txt', sep=' ', header=None)
+test = pd.read_csv(pth('testing_set.txt'), sep=' ', header=None)
 test.columns = ['id1', 'id2']
 
 
