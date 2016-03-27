@@ -1,0 +1,122 @@
+% Template for ICASSP-2015 paper; to be used with:
+%          spconf.sty  - ICASSP/ICIP LaTeX style file, and
+%          IEEEbib.bst - IEEE bibliography style file.
+% --------------------------------------------------------------------------
+\documentclass{article}
+
+\usepackage{spconf}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath, graphicx, tikz}
+\usepackage[babel=true]{csquotes}
+\usepackage[super]{nth}
+\usepackage{cite}
+\usepackage[squaren,Gray]{SIunits}
+
+% Example definitions.
+% --------------------
+% \def\x{{\mathbf x}}
+% \def\L{{\cal L}}
+
+% Title.
+% ------
+\title{Data Challenge: Prediction of missing links in a citation network}
+%
+% Single address.
+% ---------------
+\name{
+Léo Bouloc \textsuperscript{(1, 2)} \qquad
+Cyril Gaudefroy \textsuperscript{(1, 2)} \qquad
+Ariel Shemtov \textsuperscript{(1, 2)} \qquad
+Thai-Chau Truong \textsuperscript{(1, 3)}}
+\address{
+\textsuperscript{(1)} ENS Cachan, 61 Avenue du Président Wilson, 94230 Cachan\\
+\textsuperscript{(2)} ENSTA ParisTech, 828 Boulevard des Maréchaux, 91120 Palaiseau\\
+\textsuperscript{(3)} Télécom ParisTech, 46 Rue Barrault, 75013 Paris\\
+}
+%\textsuperscript{(1)} ENSTA ParisTech\\
+%
+% For example:
+% ------------
+%\address{School\\
+%	Department\\
+%	Address}
+%
+% Two addresses (uncomment and modify for two-address case).
+% ----------------------------------------------------------
+
+% \twoauthors
+% {Cyril Gaudefroy}
+% 	{ENSTA ParisTech\\
+% 	828 bd. des Maréchaux\\
+% 	91120 Palaiseau\\
+% 	cyril.gaudefroy@ensta-paristech.fr}
+% {Hélène Papadopoulos}
+% 	{Supélec L2S\\
+% 	3 rue Joliot-Curie\\
+% 	91192 Gif-sur-Yvette\\
+% 	helene.papadopoulos@lss.supelec.fr}
+
+
+\begin{document}
+\ninept
+
+\maketitle
+
+\begin{abstract}
+This report presents our work on the data challenge for the \enquote{Advanced Learning on Text and Graph Data} (ALTeGraD) the purpose of which was to predict missing links in a citation network.
+\end{abstract}
+
+%\begin{keywords}
+%music structure, segmentation, metrical structure, novelty, repetition
+%\end{keywords}
+
+\section{Introduction}
+
+The citation network that we consider here is made of research papers at its nodes, and links between nodes where one of them cites the other.
+The information available for each paper in the network is the following: title, authors (some with affiliation), year published, publisher and the abstract.
+
+\section{Features}
+
+For our learning strategy, we compute features to describe the relationship between each pair of nodes in the citation network.
+
+\subsection{Shared citations}
+
+The quantity used to describe the shared citations is the number of common neighbours in the network. In other words, the number of distinct papers that are linked to both nodes of the considered pair.
+As described in section \ref{sec:experiments}, this appears to be the most important feature of all.
+
+\subsection{Shared relevant words}
+
+The strategy used here is a bag-of-words model: a matrix with lines corresponding to documents and columns to words (ignoring stopwords) is created.
+The values in this matrix stand for how many times each word is present each document.
+In order to introduce a notion of word weight as first proposed in \cite{sparck1972statistical}, each column is then normalized so that it sums to one.
+Now, to compute the similarity between two documents, we used the intersection kernel, which computes the sum of the element-wise minimum between two line vectors.
+
+\subsection{Publication dates}
+
+Although it appears to have less impact on the result, we used the difference between the years of publication for each pair.
+The fact that this feature doesn't have much impact comes from the fact that the network that we consider is non-oriented.
+
+\subsection{Shared authors}
+
+The number of shared authors between two articles is a very significative indicator, shared authors don't happen on many pairs.
+
+\section{Learning}
+
+The strategy that we chose is a random forest. The advantages of this method is that it provides feedback on which features perform best, and also it tends to avoid overfitting. The model is trained on the training set, and then used on the test set to predict whether there exists a link or not.
+
+\section{Experiments}
+\label{sec:experiments}
+% Parler du fait que le nombre de voisins en commun fait 90% à lui tout seul.
+
+
+
+% References should be produced using the bibtex program from suitable
+% BiBTeX files (here: strings, refs, manuals). The IEEEbib.bst bibliography
+% style file from IEEE produces unsorted bibliography list.
+% -------------------------------------------------------------------------
+\bibliographystyle{IEEEbib}
+\bibliography{biblio.bib}
+
+\end{document}
