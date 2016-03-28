@@ -87,7 +87,7 @@ The fact that this feature doesn't have much impact comes from the fact that the
 \subsection{Shared authors}
 
 The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs.
-Just as in \ref{sec:shared_words}, the matrix with lines representing documents and columns authors is very sparse, therefore we also use \code{scipy}'s \code{sparse.lil\_matrix} class. The linear kernel on this matrix yields the feature that we want; numbre of authors in common between two papers.
+Just as in \ref{sec:shared_words}, the matrix with lines representing documents and columns authors is very sparse, therefore we also use \code{scipy}'s \code{sparse.lil\_matrix} class. The linear kernel on this matrix yields the feature that we want: the number of authors in common between two papers.
 
 \section{Model tuning and comparison}
 \label{sec:experiments}
