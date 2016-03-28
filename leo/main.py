@@ -16,6 +16,7 @@ from sklearn.preprocessing import normalize
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 
 import itertools  
 import os
@@ -28,7 +29,7 @@ def load_data(dev_mode=True):
     '''Loads data: dev_mode=True splits the train set in train and test'''
     # Load data
     node_info = pd.read_csv(pth('node_information.xls'), header=None)
-    node_info.columns = ['id', 'date', 'title', 'authors', 'journal', 'abstract']
+    node_info.columns = ['id', 'date', 'og_title', 'authors', 'journal', 'og_abstract']
     
     train = pd.read_csv(pth('training_set.txt'), sep=' ', header=None)
     train.columns = ['id1', 'id2', 'link']
@@ -57,14 +58,18 @@ def remove_stopwords(node_info):
     #all_abstract = pd.Series(all_abstract)
     #word_count = all_abstract.value_counts()
     #my_stopwords = list(word_count[word_count >= word_count.quantile(0.999)].index)
-    my_stopwords = []
-    my_stopwords.extend(stopwords.words('english'))
-    my_stopwords = np.array(my_stopwords)
-    
-    for word in my_stopwords:
-        node_info.abstract = node_info.abstract.str.replace(' ' + word + ' ', ' ')
-        node_info.abstract = node_info.abstract.str.rstrip(' ' + word)
-        node_info.abstract = node_info.abstract.str.lstrip(word + ' ')
+    my_stopwords = ENGLISH_STOP_WORDS
+    #    my_stopwords.extend(stopwords.words('english'))
+    #    my_stopwords = np.array(my_stopwords)
+    #    
+    #    for word in my_stopwords:
+    #        node_info.abstract = node_info.abstract.str.replace(' ' + word + ' ', ' ')
+    #        node_info.abstract = node_info.abstract.str.rstrip(' ' + word)
+    #        node_info.abstract = node_info.abstract.str.lstrip(word + ' ')
+        
+    node_info['abstract'] = node_info['og_abstract'].apply(lambda x: ' '.join([y for y in x.split() if y not in my_stopwords]))
+    node_info['title'] = node_info['og_title'].apply(lambda x: ' '.join([y for y in x.split() if y not in my_stopwords]))
+        
     return node_info
 
 def merge_data(train, test, node_info):
@@ -88,9 +93,9 @@ def create_features(table):
     table['temp6'] = table.apply(lambda x: sum([y in x.authors_1 for y in x.authors_2]), axis=1)
     
     # Count occurence of abstract 2 in title 1, abstract 1 in title 2 (and reversely)
-    table['temp7'] = table.apply(lambda x: len(set([y for y in x.abstract_1.split() if y in x.title_2.split()])), axis=1)
-    table['temp8'] = table.apply(lambda x: len(set([y for y in x.abstract_2.split() if y in x.title_1.split()])), axis=1)
-    table['temp9'] = table.temp7 + table.temp8
+#    table['temp7'] = table.apply(lambda x: len(set([y for y in x.abstract_1.split() if y in x.title_2.split()])), axis=1)
+#    table['temp8'] = table.apply(lambda x: len(set([y for y in x.abstract_2.split() if y in x.title_1.split()])), axis=1)
+#    table['temp9'] = table.temp7 + table.temp8
  
     # Count occurence of title 2 in abstract 1, title 1 in abstract 2 (and reversely)
 #    table['temp10'] = table.apply(lambda x: len(set([y for y in x.title_2.split() if y in x.abstract_1.split()])), axis=1)
@@ -164,6 +169,47 @@ def create_word_count(node_info):
     return word_mat, word_mat_norm
 
 
+def make_link_mats(node_info, train):
+    link_mat_idx = {id_: num for num, id_ in enumerate(node_info.id)}
+    link_mat = lil_matrix((len(node_info), len(node_info)))
+    for (i, row) in train.iterrows():
+        idx1 = link_mat_idx[row['id_1']]
+        idx2 = link_mat_idx[row['id_2']]
+        if bool(row['link']):
+            link_mat[idx1, idx2] = 1
+    #    else:
+    #        link_mat[idx1, idx2] = -1
+            
+    link_mat = link_mat + link_mat.T
+    link_mat_2 = link_mat.dot(link_mat)
+    link_mat_3 = link_mat_2.dot(link_mat)
+    
+    link_mat_3 = link_mat_3 - link_mat_2 - link_mat
+    link_mat_2 = link_mat_2 - link_mat
+    link_mat_2[range(len(node_info)), range(len(node_info))] = 0
+    link_mat_3[range(len(node_info)), range(len(node_info))] = 0
+        
+    return link_mat_idx, link_mat, link_mat_2, link_mat_3
+
+
+def idxs1(row, link_mat_idx):
+    idx1 = link_mat_idx[row['id_1']]
+    return idx1
+ 
+def idxs2(row, link_mat_idx):
+    idx2 = link_mat_idx[row['id_2']]
+    return idx2
+    
+
+    
+def make_graph_features(table, link_mat_idx, link_mat_2, link_mat_3):
+    all_idxs1 = table.apply(lambda row: idxs1(row, link_mat_idx), axis=1)    
+    all_idxs2 = table.apply(lambda row: idxs2(row, link_mat_idx), axis=1)   
+       
+    table['temp25'] = link_mat_2[all_idxs1, all_idxs2].todense().T
+    table['temp26'] = link_mat_3[all_idxs1, all_idxs2].todense().T
+    return table
+
 def common_links_feature(table, all_links):
     '''(VERY INEFFECIENT) Computes the number of common ids each couple is linked to'''
 
@@ -216,6 +262,39 @@ def make_authors_mat(train, node_info):
     return authors_mat, authors_mat_norm, all_authors_idx
 
 
+def tfidf_ize(train, test, node_info):
+    vectorizer = TfidfVectorizer(ngram_range=(1,1))
+    vectorizer.fit(node_info.abstract.as_matrix())
+    
+    for table in [train, test]:
+        table_tfidf_abstract_1 = vectorizer.transform(table.abstract_1.fillna(''))
+        table_tfidf_abstract_2 = vectorizer.transform(table.abstract_2.fillna(''))
+        table_tfidf_title_1 = vectorizer.transform(table.title_1.fillna(''))
+        table_tfidf_title_2 = vectorizer.transform(table.title_2.fillna(''))
+        
+        #table['temp27'] = table_tfidf_abstract_1.multiply(table_tfidf_abstract_2).sum(1)
+        table.loc[:, 'temp22'] = table_tfidf_abstract_1.minimum(table_tfidf_abstract_2).sum(1) # Intersection kernel
+        table.loc[:, 'temp23'] = table_tfidf_title_1.minimum(table_tfidf_title_2).sum(1)
+        table.loc[:, 'temp24'] = table_tfidf_abstract_1.minimum(table_tfidf_title_2).sum(1) \
+                        + table_tfidf_abstract_2.minimum(table_tfidf_title_1).sum(1)
+    
+    vectorizer = TfidfVectorizer(ngram_range=(2,2))
+    vectorizer.fit(node_info.abstract.as_matrix())
+    
+    for table in [train, test]:
+        table_tfidf_abstract_1 = vectorizer.transform(table.abstract_1.fillna(''))
+        table_tfidf_abstract_2 = vectorizer.transform(table.abstract_2.fillna(''))
+        table_tfidf_title_1 = vectorizer.transform(table.title_1.fillna(''))
+        table_tfidf_title_2 = vectorizer.transform(table.title_2.fillna(''))
+        
+        #table['temp27'] = table_tfidf_abstract_1.multiply(table_tfidf_abstract_2).sum(1)
+        table.loc[:, 'temp27'] = table_tfidf_abstract_1.minimum(table_tfidf_abstract_2).sum(1) # Intersection kernel
+        table.loc[:, 'temp28'] = table_tfidf_title_1.minimum(table_tfidf_title_2).sum(1)
+        table.loc[:, 'temp29'] = table_tfidf_abstract_1.minimum(table_tfidf_title_2).sum(1) \
+                        + table_tfidf_abstract_2.minimum(table_tfidf_title_1).sum(1)
+    
+    return train, test
+
 def author_cite_freq_metric(row, authors_mat_norm):
     authors_1 = [x for x in row.authors_1 if x != '']
     authors_2 = [x for x in row.authors_2 if x != '']
@@ -249,12 +328,11 @@ def make_authors_features(table, authors_mat_norm):
     table.loc[sel, 'temp17'] = table.loc[sel, 'auth_cite_freq_2'].apply(lambda x: np.mean(x))
     table.loc[sel, 'temp18'] = table.loc[sel, 'auth_cite_freq_2'].apply(lambda x: np.max(x))
     
-    train['temp19'] = train.temp16.replace(-1, train.temp16.median())
-    train['temp20'] = train.temp18.replace(-1, train.temp18.median())
-    
-    test['temp19'] = test.temp16.replace(-1, train.temp16.median())
-    test['temp20'] = test.temp18.replace(-1, train.temp18.median())    
-    
+    return table
+
+def replace_authors_features(table, train):
+    table['temp19'] = table.temp16.replace(-1, train.temp16.median())
+    table['temp20'] = table.temp18.replace(-1, train.temp18.median())
     return table
 
 def write_submit(y_test_pred, name_suffix=None):
@@ -270,10 +348,10 @@ def write_submit(y_test_pred, name_suffix=None):
     to_submit.to_csv(pth(file_name), index=False, sep=',')
     print 'File written in: {path}'.format(path=pth(file_name))
 
-
+assert False
 
 # Set dev_mode to False for submission
-dev_mode = False
+dev_mode = True
 
 
 # Load data
@@ -293,8 +371,8 @@ authors_mat, authors_mat_norm, all_authors_idx = make_authors_mat(train, node_in
 print 'Computing authors features (long...)'
 train = make_authors_features(train, authors_mat_norm)
 test = make_authors_features(test, authors_mat_norm)
-
-
+train = replace_authors_features(train, train)
+test = replace_authors_features(test, train)
 
 # Create abstract word similarity metric (temp1)
 print 'Computing abstract word similarity'
@@ -306,14 +384,8 @@ train['temp1_lin'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_orde
 test['temp1_lin'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order, 'lin'), axis=1)
 
 # Creating abstract tfidf simillarity (temp20)
-vectorizer = TfidfVectorizer()
-tfidf_mat = vectorizer.fit_transform(node_info.abstract.as_matrix())
-#train['temp21'] = train.apply(lambda x: kernel(x, tfidf_mat, node_id_order), axis=1)
-#test['temp21'] = test.apply(lambda x: kernel(x, tfidf_mat, node_id_order), axis=1)
-train['temp22'] = train.apply(lambda x: kernel(x, tfidf_mat, node_id_order, 'lin'), axis=1)
-test['temp22'] = test.apply(lambda x: kernel(x, tfidf_mat, node_id_order, 'lin'), axis=1)
-
-
+print 'In tfidf'
+train, test = tfidf_ize(train, test, node_info)
 
 # Create various features (temp6, temp13, temp14)
 print 'Creating various features'
@@ -327,18 +399,28 @@ all_links = create_all_links(train) # all links per id
 train = common_links_feature(train, all_links)
 test = common_links_feature(test, all_links)
 
-
-
-
+# Alternative method for links in common
+link_mat_idx, link_mat, link_mat_2, link_mat_3 = make_link_mats(node_info, train)
+train = make_graph_features(train, link_mat_idx, link_mat_2, link_mat_3)
+test = make_graph_features(test, link_mat_idx, link_mat_2, link_mat_3)
 
 
 # Define features to use for classification
-features = ['temp1', 'temp22', 'temp2', 'temp6', 'temp13', 'temp14'] + ['temp4', 'temp5', 'temp9'] + ['temp19', 'temp20']
+features = ['temp1', 'temp22','temp23', 'temp24', 'temp27', 'temp28', 'temp29'] \
+            + ['temp26'] \
+            + ['temp2'] \
+            + ['temp4', 'temp5', 'temp6', 'temp13', 'temp14']  \
+            + ['temp19', 'temp20']
+            
+
+            # temp9
+
+            
 to_predict = 'link' # Name of column to classify
 
 
 # Random forest classification
-predictor = RandomForestClassifier(n_estimators=200, criterion='gini', max_depth=13, \
+predictor = RandomForestClassifier(n_estimators=200, criterion='gini', max_depth=9, \
                                 min_samples_split=2, min_samples_leaf=1, \
                                 min_weight_fraction_leaf=0.0, max_features='auto', \
                                 max_leaf_nodes=None, bootstrap=True, oob_score=False, \
@@ -375,7 +457,7 @@ if dev_mode:
 
 # Write test prediction in data folder
 if not dev_mode:
-    write_submit(y_test_pred, name_suffix = '_4')
+    write_submit(y_test_pred, name_suffix = '_5')
 
 
 
@@ -387,12 +469,34 @@ assert False
 train['link_pred'] = y_train_pred
 train['good_pred'] = train.link == train.link_pred
 
+
+test['link_pred'] = y_test_pred
+test['good_pred'] = test.link == test.link_pred
+
+y_test_pred = (test.temp26 >= train.temp26.median()).astype(int).as_matrix()
+
+test.groupby('temp25')['link'].mean()
+
+train['abs_len_1'] = train.abstract_1.fillna('').apply(len)
+train['abs_len_2'] = train.abstract_2.fillna('').apply(len)
+
+test['abs_len_1'] = test.abstract_1.fillna('').apply(len)
+test['abs_len_2'] = test.abstract_2.fillna('').apply(len)
+
+
 #train.to_csv(pth('my_train.csv'), index=False)
 #test.to_csv(pth('my_test.csv'), index=False)
 
 train = pd.read_csv(pth('my_train.csv'))
 test = pd.read_csv(pth('my_test.csv'))
 
+node_info = pd.read_csv(pth('node_information.xls'), header=None)
+node_info.columns = ['id', 'date', 'title', 'authors', 'journal', 'abstract_full']
+    
+train = train.merge(node_info_og[['id', 'abstract_full']], how='left', left_on='id1', right_on='id').merge(node_info_og[['id', 'abstract_full']],\
+                    how='left', left_on='id2', right_on='id', suffixes=('_1', '_2'))
+test = test.merge(node_info_og[['id', 'abstract_full']], how='left', left_on='id1', right_on='id').merge(node_info_og[['id', 'abstract_full']],\
+            how='left', left_on='id2', right_on='id', suffixes=('_1', '_2'))
 
 
 
@@ -404,14 +508,49 @@ test = pd.read_csv(pth('my_test.csv'))
 assert False
 ''' BELOW IS FOR EXPLORATION '''
 
+train_og = train
+test_og = test
 
 
+train = train_og
+test = test_og
+
+
+w2v_mat = pd.read_csv(pth('glove.6B.100d.txt'), sep=' ', skiprows=10, header=None) 
+w2v_index = {w:i for i, w in enumerate(w2v_mat[0].as_matrix())}
+
+def get_w2v_indexes(row, w2v_index, fill_val):
+    abstract = row['abstract'].split()
+    abstract_idxs = [w2v_index.get(x, fill_val) for x in abstract]
+    return abstract_idxs
+    
+fill_val = len(w2v_index)
+w2v_mat.loc[len(w2v_mat), :] = 0
+w2v_mat = w2v_mat.iloc[:, 1:].as_matrix()
+node_info['w2v_indexes'] = node_info.apply(lambda row: get_w2v_indexes(row, w2v_index, fill_val), axis=1)
+doc_w2v_embeding = node_info.apply(lambda row: list(w2v_mat[row['w2v_indexes'], :].mean(0)), axis=1)
+doc_w2v_embeding = np.array([np.array(x) for x in doc_w2v_embeding.as_matrix()])
+
+
+def w2v_feature(table):
+    link_mat_idx = {id_: num for num, id_ in enumerate(node_info.id)}
+    all_idxs1 = table.apply(lambda row: idxs1(row, link_mat_idx), axis=1)    
+    all_idxs2 = table.apply(lambda row: idxs2(row, link_mat_idx), axis=1)   
+       
+    temp1 = (doc_w2v_embeding[all_idxs1, :] * doc_w2v_embeding[all_idxs2, :]).sum(1)
+    temp2 = np.sqrt((doc_w2v_embeding[all_idxs1, :] * doc_w2v_embeding[all_idxs1, :]).sum(1))
+    temp3 = np.sqrt((doc_w2v_embeding[all_idxs2, :] * doc_w2v_embeding[all_idxs2, :]).sum(1))
+    table['temp30'] = temp1/(temp2*temp3)
+    return table
 
 
 assert False
 train['link_pred'] = y_train_pred
-train['link_pred_proba'] = y_train_pred_proba[:, 1]
+test['link_pred'] = y_test_pred
+#train['link_pred_proba'] = y_train_pred_proba[:, 1]
 
+
+for x in zip(features, predictor.feature_importances_): print x
 
 #train['link_pred'] = (train.temp2 >= 1) | (train.temp1 >= train.temp1.quantile(0.7))
 #accuracy = (train.link_pred == train.link.astype(bool)).mean()
