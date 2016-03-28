@@ -77,7 +77,7 @@ This report presents our work on the data challenge for the \enquote{Advanced Le
 The citation network that we consider here is made of research papers at its nodes, and links between nodes where one of them cites the other.
 The information available for each paper in the network is the following: title, authors (some with affiliation), year published, publisher and the abstract.
 
-\section{Features}
+\section{Feature engineering}
 
 For our learning strategy, we compute features to describe the relationship between each pair of nodes in the citation network.
 
@@ -100,14 +100,14 @@ The fact that this feature doesn't have much impact comes from the fact that the
 
 \subsection{Shared authors}
 
-The number of shared authors between two articles is a very significative indicator, shared authors don't happen on many pairs.
+The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs.
 
-\section{Learning}
+\section{Model tuning and comparison}
+\label{sec:experiments}
 
 The strategy that we chose is a random forest. The advantages of this method is that it provides feedback on which features perform best, and also it tends to avoid overfitting. The model is trained on the training set, and then used on the test set to predict whether there exists a link or not.
 
-\section{Experiments}
-\label{sec:experiments}
+
 % Parler du fait que le nombre de voisins en commun fait 90% à lui tout seul.
 
 
