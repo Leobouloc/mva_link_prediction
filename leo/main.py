@@ -150,7 +150,7 @@ def create_word_count(node_info):
     words_to_ind_dict = dict(zip(unique_words, range(len(unique_words))))
     
     
-    word_mat = lil_matrix((len(node_info), len(unique_words)))
+    word_mat = lil_matrix((len(node_info), len(unique_words)), dtype=np.int32)
     assert all(node_info.index == range(len(node_info)))
     # Fill matrix iteratively by looping on abstracts
     for (ind, abstract) in node_info.abstract.iteritems():
@@ -171,7 +171,7 @@ def create_word_count(node_info):
 
 def make_link_mats(node_info, train):
     link_mat_idx = {id_: num for num, id_ in enumerate(node_info.id)}
-    link_mat = lil_matrix((len(node_info), len(node_info)))
+    link_mat = lil_matrix((len(node_info), len(node_info)), dtype=np.int32)
     for (i, row) in train.iterrows():
         idx1 = link_mat_idx[row['id_1']]
         idx2 = link_mat_idx[row['id_2']]
@@ -183,13 +183,15 @@ def make_link_mats(node_info, train):
     link_mat = link_mat + link_mat.T
     link_mat_2 = link_mat.dot(link_mat)
     link_mat_3 = link_mat_2.dot(link_mat)
+    link_mat_4 = link_mat_2.dot(link_mat)
     
+    link_mat_3 = link_mat_4 - link_mat_3 - link_mat_2 - link_mat
     link_mat_3 = link_mat_3 - link_mat_2 - link_mat
     link_mat_2 = link_mat_2 - link_mat
     link_mat_2[range(len(node_info)), range(len(node_info))] = 0
     link_mat_3[range(len(node_info)), range(len(node_info))] = 0
         
-    return link_mat_idx, link_mat, link_mat_2, link_mat_3
+    return link_mat_idx, link_mat, link_mat_2, link_mat_3, link_mat_4
 
 
 def idxs1(row, link_mat_idx):
@@ -202,12 +204,13 @@ def idxs2(row, link_mat_idx):
     
 
     
-def make_graph_features(table, link_mat_idx, link_mat_2, link_mat_3):
+def make_graph_features(table, link_mat_idx, link_mat_2, link_mat_3, link_mat_4):
     all_idxs1 = table.apply(lambda row: idxs1(row, link_mat_idx), axis=1)    
     all_idxs2 = table.apply(lambda row: idxs2(row, link_mat_idx), axis=1)   
        
     table['temp25'] = link_mat_2[all_idxs1, all_idxs2].todense().T
     table['temp26'] = link_mat_3[all_idxs1, all_idxs2].todense().T
+    table['temp26_4'] = link_mat_4[all_idxs1, all_idxs2].todense().T
     return table
 
 def common_links_feature(table, all_links):
@@ -400,9 +403,15 @@ train = common_links_feature(train, all_links)
 test = common_links_feature(test, all_links)
 
 # Alternative method for links in common
-link_mat_idx, link_mat, link_mat_2, link_mat_3 = make_link_mats(node_info, train)
-train = make_graph_features(train, link_mat_idx, link_mat_2, link_mat_3)
-test = make_graph_features(test, link_mat_idx, link_mat_2, link_mat_3)
+link_mat_idx, link_mat, link_mat_2, link_mat_3, link_mat_4 = make_link_mats(node_info, train)
+train = make_graph_features(train, link_mat_idx, link_mat_2, link_mat_3, link_mat_4)
+test = make_graph_features(test, link_mat_idx, link_mat_2, link_mat_3, link_mat_4)
+
+# Count link appearance
+id_count = train.groupby('id_1').size() + train.groupby('id_2').size()
+id_count.name = 'id_count'
+train = train.join(id_count, on='id_1').join(id_count, on='id_2', lsuffix='_1', rsuffix='__2')
+test = test.join(id_count, on='id_1').join(id_count, on='id_2', lsuffix='_1', rsuffix='__2')
 
 
 # Define features to use for classification
@@ -410,7 +419,7 @@ features = ['temp1', 'temp22','temp23', 'temp24', 'temp27', 'temp28', 'temp29'] 
             + ['temp26'] \
             + ['temp2'] \
             + ['temp4', 'temp5', 'temp6', 'temp13', 'temp14']  \
-            + ['temp19', 'temp20']
+            + ['temp19', 'temp20'] 
             
 
             # temp9
