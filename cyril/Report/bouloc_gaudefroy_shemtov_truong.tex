@@ -35,8 +35,7 @@ Thai-Chau Truong \textsuperscript{(1, 3)}}
 \textsuperscript{(2)} ENSTA ParisTech, 828 Boulevard des Maréchaux, 91120 Palaiseau\\
 \textsuperscript{(3)} Télécom ParisTech, 46 Rue Barrault, 75013 Paris\\
 }
-%\textsuperscript{(1)} ENSTA ParisTech\\
-%
+
 % For example:
 % ------------
 %\address{School\\
@@ -46,18 +45,7 @@ Thai-Chau Truong \textsuperscript{(1, 3)}}
 % Two addresses (uncomment and modify for two-address case).
 % ----------------------------------------------------------
 
-% \twoauthors
-% {Cyril Gaudefroy}
-% 	{ENSTA ParisTech\\
-% 	828 bd. des Maréchaux\\
-% 	91120 Palaiseau\\
-% 	cyril.gaudefroy@ensta-paristech.fr}
-% {Hélène Papadopoulos}
-% 	{Supélec L2S\\
-% 	3 rue Joliot-Curie\\
-% 	91192 Gif-sur-Yvette\\
-% 	helene.papadopoulos@lss.supelec.fr}
-
+\newcommand{\code}[1]{\texttt{#1}}
 
 \begin{document}
 \ninept
@@ -65,17 +53,14 @@ Thai-Chau Truong \textsuperscript{(1, 3)}}
 \maketitle
 
 \begin{abstract}
-This report presents our work on the data challenge for the \enquote{Advanced Learning on Text and Graph Data} (ALTeGraD) the purpose of which was to predict missing links in a citation network.
+This report presents our work on the data challenge for the \enquote{Advanced Learning on Text and Graph Data} (ALTeGraD) class, the purpose of which was to predict missing links in a citation network.
 \end{abstract}
 
-%\begin{keywords}
-%music structure, segmentation, metrical structure, novelty, repetition
-%\end{keywords}
 
 \section{Introduction}
 
-The citation network that we consider here is made of research papers at its nodes, and links between nodes where one of them cites the other.
-The information available for each paper in the network is the following: title, authors (some with affiliation), year published, publisher and the abstract.
+The citation network that we consider here is made of research papers at its nodes, and links between articles where one of them cites the other.
+The information available about each paper in the network is the following: title, authors (some with affiliation), year published, publisher and the abstract.
 
 \section{Feature engineering}
 
@@ -83,24 +68,26 @@ For our learning strategy, we compute features to describe the relationship betw
 
 \subsection{Shared citations}
 
-The quantity used to describe the shared citations is the number of common neighbours in the network. In other words, the number of distinct papers that are linked to both nodes of the considered pair.
+The quantity used to describe the shared citations is the number of common neighbors in the network. In other words, the number of distinct papers that are linked to both nodes of the considered pair. A nice way to access this quantity from the adjency matrix $A$ is to compute $A^2$, the coefficient $A^2_{ij}$ of which correspond to how many paths in the network join nodes $i$ and $j$ via exactly one intermediate node.
 As described in section \ref{sec:experiments}, this appears to be the most important feature of all.
 
 \subsection{Shared relevant words}
+\label{sec:shared_words}
 
-The strategy used here is a bag-of-words model: a matrix with lines corresponding to documents and columns to words (ignoring stopwords) is created.
-The values in this matrix stand for how many times each word is present each document.
-In order to introduce a notion of word weight as first proposed in \cite{sparck1972statistical}, each column is then normalized so that it sums to one.
-Now, to compute the similarity between two documents, we used the intersection kernel, which computes the sum of the element-wise minimum between two line vectors.
+The strategy used here is a bag-of-words model: a matrix with lines corresponding to documents and columns to words -- ignoring stopwords -- is created.
+In order to introduce notions of word importance and word frequency as first proposed in \cite{sparck1972statistical}, we use the Term Frequency - Inverse Document Frequency (TF-IDF) measure. The matrix being sparse, we use \code{scipy}'s \code{sparse.lil\_matrix} class.
+Now, to compute the similarity between two documents, we used the linear kernel (dot product).
 
 \subsection{Publication dates}
 
 Although it appears to have less impact on the result, we used the difference between the years of publication for each pair.
+
 The fact that this feature doesn't have much impact comes from the fact that the network that we consider is non-oriented.
 
 \subsection{Shared authors}
 
 The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs.
+Just as in \ref{sec:shared_words}, the matrix with lines representing documents and columns authors is very sparse, therefore we also use \code{scipy}'s \code{sparse.lil\_matrix} class. The linear kernel on this matrix yields the feature that we want: the number of authors in common between two papers.
 
 \section{Model tuning and comparison}
 \label{sec:experiments}
