@@ -82,17 +82,10 @@ For our learning strategy, we compute features to describe the relationship betw
 
 \subsection{Text level: Shared relevant words}
 
-The reason to use this feature is based on a fact that two papers citing each other often belong to the same research field and therefore share the same set of some keywords. This feature is constructed mainly on the abstract field.
-\subsubsection{Text preprocessing}
-\begin{itemize}
-\item \textbf{Removing NaN fields}: The original dataset contains some NaN values. We replace these fields by empty fields. These values will generally not be used for the feature construction and classification processes.
-\item \textbf{Removing stopwords}: To distinguish scientific keywords with regular words in English, we first did a preprocessing step that eliminates all stopwords using an available corpus of sklearn.
-\end{itemize}
-\subsubsection{Text features}
-We construct two types of features concerning common relevant words:
+The reason to use this feature is based on a fact that two papers citing each other often belong to the same research field and therefore share the same set of some keywords. This feature is constructed mainly on the abstract field. The original dataset contains some NaN values. We replace these fields by empty fields. These values will generally not be used for the feature construction and classification processes. We construct two types of features concerning common relevant words:
 \begin{itemize}
 \item \textbf{Bag-of-words model}: a matrix with lines corresponding to documents and columns to words (ignoring stopwords) is created. The values in this matrix stand for how many times each word is present each document. In order to introduce a notion of word weight as first proposed in \cite{sparck1972statistical}, each column is then normalized so that it sums to one. Now, to compute the similarity between two documents, we used the intersection kernel, which computes the sum of the element-wise minimum between two line vectors.
-\item \textbf{Term Frequency-Inverse Document Frequency (TF-IDF)}
+\item \textbf{Term Frequency-Inverse Document Frequency (TF-IDF) (NEED TO HAVE DETAILS)}
 \end{itemize}
 \subsection{Graph level}
 \subsubsection{Number of shared citations}
@@ -105,14 +98,18 @@ For this feature, we include two characteristics which are: whether two papers b
 
 \subsubsection{Number of common authors}
 
-The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs.
-
+The reason to use these features is that an author is usually specialized in one or more fields. Therefore, his research is continued in many papers. Specifically, this is a group that contains three main features:
+\begin{itemize}
+\item The number of common authors in two papers
+\item The number of authors in paper 1 that appear in the abstract of paper 2 and vice versa.
+\end{itemize}
+The first feature is more important because an abstract usually does not mention the name of the authors. The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs. 
 \section{Model tuning and comparison}
 \label{sec:experiments}
 
 \subsection{Experiment method}
 
-The strategy that we chose is a random forest. The advantages of this method is that it provides feedback on which features perform best, and also it tends to avoid over-fitting. The model is trained on the training set, and then used on the test set to predict whether there exists a link or not. Since it takes too long to perform a cross-validation test, we only divide the original dataset into two parts: 75$\%$ of the data is used for training and 25$\%$ is used for testing. Although this type of testing error is not a very good estimator for the generalization error on the final result, it could still help us reduce the time to test the quality of each feature set. We use both training and testing error also to examine if there is over-fitting or under-fitting situation on the data.
+The classifier that we chose is a random forest. The advantages of this method is that it provides feedback on which features perform best, and also it tends to avoid over-fitting. The model is trained on the training set, and then used on the test set to predict whether there exists a link or not. Since it takes too long to perform a cross-validation test, we only divide the original dataset into two parts: 75$\%$ of the data is used for training and 25$\%$ is used for testing. Although this type of testing error is not a very good estimator for the generalization error on the final result, it could still help us reduce the time to test the quality of each feature set. We use both training and testing error also to examine if there is over-fitting or under-fitting situation on the data.
 \subsubsection{Result on each individual type of features}
 The goal of this experiment is to evaluate the significance of each separate type of features. Table \ref{tab:separate}
 \begin{table}
@@ -132,11 +129,17 @@ The goal of this experiment is to evaluate the significance of each separate typ
 \subsection{Tuning parameters on random forest}
 % Parler du fait que le nombre de voisins en commun fait 90% à lui tout seul.
 
-\section{Other examined methods}
-Another problem that needs to be addressed is how to cluster synonyms. On all abstracts, there are words that are synonyms of each others. They may have similar meaning (e.g. problematic, troublesome) or in sigular/plural forms (e.g. package, packages.) It could be imperative to determine cluster the words that have similar meaning. However, one major problem is that the dataset does not contain a sufficiently large amount of text to feed into a Word2Vec mode. Therefore, an alternative solution that we tried was to reuse a Word2Vec model that was pre-trained by Google in \cite{word2vecgg}. But this type of feature still did not work well on the classification task. (The training and testing accuracy for this feature was under 70$\%$)
+\section{Some methods that did not work out}
+Here is some methods that need to be extended or that we tried but did not work well. We list here to remark and see if others managed to apply or if they could be improved in the future.
+\begin{itemize}
+\item \textbf{Addressing the synonyms by Word2Vec:} A problem that needs to be addressed is how to cluster synonyms. In all abstracts, there are words that are synonyms of each others. They may have similar meaning (e.g. problematic, troublesome) or in sigular/plural forms (e.g. package, packages.) It could be imperative to determine cluster the words that have similar meaning. However, one major problem is that the dataset does not contain a sufficiently large amount of text to feed into a Word2Vec mode. Therefore, an alternative solution that we tried was to reuse a Word2Vec model that was pre-trained by Google in \cite{word2vecgg}. But this type of feature still did not work well on the classification task. (The training and testing accuracy for this feature was under 70$\%$.)
+\item \textbf{The use of Doc2Vec:} Doc2Vec is an  We also try to capture some correlation between two document in each pair by a Doc2Vec model (\cite{DBLP:LeM14}) whose library is available in gensim 0.10.3. This approach also did not work out. A possible explanation is that at the level of text meaning, two papers that are cited in a pair do not share much correlation. Our use of Doc2Vec could not capture much difference between a cited and non-cited pair.
+\item \textbf{Citation of classical papers:} As mentioned above, our prediction of a link is mainly based on the similarity in a text and in a network. In reality, there may be the case when we have a paper which is quite old and is in a completely different domain but contains a significant theory for the current paper that cites to. This is the case that we could not handle well.
+\end{itemize}
+
 \section{Conclusion}
 
-
+In the scope of this project, we managed to build a model that predicts the links based on the choice of appropriate features and the use of random forest. The parameters are chosen based on the common information of a paper at the level of graph and the common keywords on the text level. The criterion to choose the feature is the contribution to the performance of the system.
 
 % References should be produced using the bibtex program from suitable
 % BiBTeX files (here: strings, refs, manuals). The IEEEbib.bst bibliography
