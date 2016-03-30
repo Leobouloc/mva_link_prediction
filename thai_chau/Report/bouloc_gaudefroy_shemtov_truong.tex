@@ -1,0 +1,148 @@
+% Template for ICASSP-2015 paper; to be used with:
+%          spconf.sty  - ICASSP/ICIP LaTeX style file, and
+%          IEEEbib.bst - IEEE bibliography style file.
+% --------------------------------------------------------------------------
+\documentclass{article}
+
+\usepackage{spconf}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath, graphicx, tikz}
+\usepackage[babel=true]{csquotes}
+\usepackage[super]{nth}
+\usepackage{cite}
+\usepackage[squaren,Gray]{SIunits}
+
+% Example definitions.
+% --------------------
+% \def\x{{\mathbf x}}
+% \def\L{{\cal L}}
+
+% Title.
+% ------
+\title{Data Challenge: Prediction of missing links in a citation network}
+%
+% Single address.
+% ---------------
+\name{
+Léo Bouloc \textsuperscript{(1, 2)} \qquad
+Cyril Gaudefroy \textsuperscript{(1, 2)} \qquad
+Ariel Shemtov \textsuperscript{(1, 2)} \qquad
+Thai-Chau Truong \textsuperscript{(1, 3)}}
+\address{
+\textsuperscript{(1)} ENS Cachan, 61 Avenue du Président Wilson, 94230 Cachan\\
+\textsuperscript{(2)} ENSTA ParisTech, 828 Boulevard des Maréchaux, 91120 Palaiseau\\
+\textsuperscript{(3)} Télécom ParisTech, 46 Rue Barrault, 75013 Paris\\
+}
+%\textsuperscript{(1)} ENSTA ParisTech\\
+%
+% For example:
+% ------------
+%\address{School\\
+%	Department\\
+%	Address}
+%
+% Two addresses (uncomment and modify for two-address case).
+% ----------------------------------------------------------
+
+% \twoauthors
+% {Cyril Gaudefroy}
+% 	{ENSTA ParisTech\\
+% 	828 bd. des Maréchaux\\
+% 	91120 Palaiseau\\
+% 	cyril.gaudefroy@ensta-paristech.fr}
+% {Hélène Papadopoulos}
+% 	{Supélec L2S\\
+% 	3 rue Joliot-Curie\\
+% 	91192 Gif-sur-Yvette\\
+% 	helene.papadopoulos@lss.supelec.fr}
+
+
+\begin{document}
+\ninept
+
+\maketitle
+
+\begin{abstract}
+This report presents our work on the data challenge for the \enquote{Advanced Learning on Text and Graph Data} (ALTeGraD) the purpose of which was to predict missing links in a citation network. From the dataset, we construct a set of features on two groups: text and graph. Then, we perform the classification task by random forest to find out features that contribute the most positively to the solution of the problem.
+\end{abstract}
+
+%\begin{keywords}
+%music structure, segmentation, metrical structure, novelty, repetition
+%\end{keywords}
+
+\section{Introduction}
+
+The citation network that we consider here is made of research papers at its nodes, and links between nodes where one of them cites the other. The common information available for each paper in the network is the following: title, authors (some with affiliation), year published, publisher and the abstract.
+
+\section{Feature engineering}
+
+For our learning strategy, we compute features to describe the relationship between each pair of nodes in the citation network. The features belong to two levels text and graph.
+
+\subsection{Text level: Shared relevant words}
+
+The reason to use this feature is based on a fact that two papers citing each other often belong to the same research field and therefore share the same set of some keywords. This feature is constructed mainly on the abstract field.
+\subsubsection{Text preprocessing}
+\begin{itemize}
+\item \textbf{Removing NaN fields}: The original dataset contains some NaN values. We replace these fields by empty fields. These values will generally not be used for the feature construction and classification processes.
+\item \textbf{Removing stopwords}: To distinguish scientific keywords with regular words in English, we first did a preprocessing step that eliminates all stopwords using an available corpus of sklearn.
+\end{itemize}
+\subsubsection{Text features}
+We construct two types of features concerning common relevant words:
+\begin{itemize}
+\item \textbf{Bag-of-words model}: a matrix with lines corresponding to documents and columns to words (ignoring stopwords) is created. The values in this matrix stand for how many times each word is present each document. In order to introduce a notion of word weight as first proposed in \cite{sparck1972statistical}, each column is then normalized so that it sums to one. Now, to compute the similarity between two documents, we used the intersection kernel, which computes the sum of the element-wise minimum between two line vectors.
+\item \textbf{Term Frequency-Inverse Document Frequency (TF-IDF)}
+\end{itemize}
+\subsection{Graph level}
+\subsubsection{Number of shared citations}
+
+In a citation network, this quantity represents the number of common neighbors in the network. In other words, each neighbor is a distinct paper that is linked to both nodes of the considered pair. Our assumption is that when two papers have a number of common citations, their subjects are more closed to each other and the probability for them to be cited to each other will be higher. As described in section \ref{sec:experiments}, this appears to be the most important feature.
+
+\subsubsection{Difference in publication time in the same journal}
+
+For this feature, we include two characteristics which are: whether two papers belong to the same journal and their difference in the publication time. The assumption behind this is that in the same journal, the subjects of two papers are somehow related to each other because they are in the same field. And the probability that two papers have a link depends also on the publication time. In section \ref{sec:experiments}, it shows that this feature doesn't have much impact comes from the fact that the network that we consider is non-oriented.
+
+\subsubsection{Number of common authors}
+
+The number of shared authors between two articles is a very significant indicator, although shared authors don't happen in many pairs.
+
+\section{Model tuning and comparison}
+\label{sec:experiments}
+
+\subsection{Experiment method}
+
+The strategy that we chose is a random forest. The advantages of this method is that it provides feedback on which features perform best, and also it tends to avoid over-fitting. The model is trained on the training set, and then used on the test set to predict whether there exists a link or not. Since it takes too long to perform a cross-validation test, we only divide the original dataset into two parts: 75$\%$ of the data is used for training and 25$\%$ is used for testing. Although this type of testing error is not a very good estimator for the generalization error on the final result, it could still help us reduce the time to test the quality of each feature set. We use both training and testing error also to examine if there is over-fitting or under-fitting situation on the data.
+\subsubsection{Result on each individual type of features}
+The goal of this experiment is to evaluate the significance of each separate type of features. Table \ref{tab:separate}
+\begin{table}
+	\label{tab:separate}
+	\centering
+	\caption{Performance on each separate feature groups (in $\%$)}
+	\begin{tabular}{|c|c|c|} \hline
+		Feature&Training error&Testing error\\ \hline
+		Common keywords using BoW&99.67&86.05\\ \hline
+		Common keywords using TF-IDF&83.16&82.94\\ \hline
+		Number of common citations&98.81&\textbf{93.54}\\ \hline
+		Publication date difference&64.47&64.28\\ \hline
+		Number of common authors&83.16&82.94\\ \hline
+	\end{tabular}
+\end{table}
+
+\subsection{Tuning parameters on random forest}
+% Parler du fait que le nombre de voisins en commun fait 90% à lui tout seul.
+
+\section{Other examined methods}
+Another problem that needs to be addressed is how to cluster synonyms. On all abstracts, there are words that are synonyms of each others. They may have similar meaning (e.g. problematic, troublesome) or in sigular/plural forms (e.g. package, packages.) It could be imperative to determine cluster the words that have similar meaning. However, one major problem is that the dataset does not contain a sufficiently large amount of text to feed into a Word2Vec mode. Therefore, an alternative solution that we tried was to reuse a Word2Vec model that was pre-trained by Google in \cite{word2vecgg}. But this type of feature still did not work well on the classification task. (The training and testing accuracy for this feature was under 70$\%$)
+\section{Conclusion}
+
+
+
+% References should be produced using the bibtex program from suitable
+% BiBTeX files (here: strings, refs, manuals). The IEEEbib.bst bibliography
+% style file from IEEE produces unsorted bibliography list.
+% -------------------------------------------------------------------------
+\bibliographystyle{IEEEbib}
+\bibliography{biblio.bib}
+
+\end{document}

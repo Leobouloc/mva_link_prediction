@@ -1,0 +1,49 @@
+This is BibTeX, Version 0.99d (TeX Live 2013/Debian)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: bouloc_gaudefroy_shemtov_truong.aux
+The style file: IEEEbib.bst
+Database file #1: biblio.bib.bib
+Warning--entry type for "word2vecgg" isn't style-file defined
+--line 12 of file biblio.bib.bib
+You've used 2 entries,
+            1838 wiz_defined-function locations,
+            466 strings with 3777 characters,
+and the built_in function-call counts, 321 in all, are:
+= -- 29
+> -- 5
+< -- 0
++ -- 3
+- -- 1
+* -- 22
+:= -- 50
+add.period$ -- 2
+call.type$ -- 2
+change.case$ -- 2
+chr.to.int$ -- 0
+cite$ -- 2
+duplicate$ -- 13
+empty$ -- 40
+format.name$ -- 1
+if$ -- 71
+int.to.chr$ -- 0
+int.to.str$ -- 2
+missing$ -- 1
+newline$ -- 11
+num.names$ -- 1
+pop$ -- 9
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 6
+stack$ -- 0
+substring$ -- 19
+swap$ -- 2
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 0
+while$ -- 3
+width$ -- 3
+write$ -- 20
+(There was 1 warning)

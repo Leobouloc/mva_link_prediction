@@ -1,0 +1,12 @@
+\begin{thebibliography}{1}
+
+\bibitem{word2vecgg}
+``Word2vec: Google code project,'' 2013.
+
+\bibitem{sparck1972statistical}
+Karen Sparck~Jones,
+\newblock ``A statistical interpretation of term specificity and its
+  application in retrieval,''
+\newblock {\em Journal of documentation}, vol. 28, no. 1, pp. 11--21, 1972.
+
+\end{thebibliography}
