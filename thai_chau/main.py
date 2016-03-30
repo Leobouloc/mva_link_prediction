@@ -354,6 +354,8 @@ def write_submit(y_test_pred, name_suffix=None):
     to_submit.to_csv(pth(file_name), index=False, sep=',')
     print ('File written in: {path}'.format(path=pth(file_name)))
 
+
+
 # Set dev_mode to False for submission
 dev_mode = True
 
@@ -392,8 +394,8 @@ with open(code_folder + 'synonym.dat', 'rb') as f:
 print ('Computing abstract word similarity')
 word_mat, word_mat_norm = create_word_count(node_info)
 node_id_order = dict(zip(node_info.id, node_info.index))
-train['commonword_word2vec'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
-test['commonword_word2vec'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
+train['commonword'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
+test['commonword'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
 #train['commonword_lin'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_order, 'lin'), axis=1)
 #test['commonword_lin'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order, 'lin'), axis=1)
 
@@ -431,3 +433,72 @@ import pickle
 print('Save all features')
 with open(code_folder + 'all_features.dat', 'wb') as f:
     pickle.dump((train, test), f)
+    
+    
+
+
+    
+#%%
+import pickle
+print('Load all features')
+with open(code_folder + 'all_features.dat', 'rb') as f:
+    train, test = pickle.load(f)
+    
+
+
+
+
+
+#%%
+train = chau_features(train)
+test = chau_features(test)
+#%%
+# Define features to use for classification
+features = []
+#features += ['commonword']
+
+#features += ['ngram_abstract_1_1','ngram_title_1_1', 'ngram_title_abstract_1_1']
+#features += ['ngram_abstract_2_2', 'ngram_title_2_2', 'ngram_title_abstract_2_2']
+             
+#features += ['commonlink_temp26'] #High performance
+#features += ['commonlink_temp25'] #Very low performance
+
+#features += ['is_same_journal', 'time_difference']
+
+features += ['author_2_in_abstract_1', 'author_1_in_abstract_2']
+features += ['author_1_in_author_2']
+#features += ['auth_cite_freq_1_mean', 'auth_cite_freq_2_mean']
+#features += ['auth_cite_freq_1_max', 'auth_cite_freq_2_max']
+#features += ['auth_cite_freq_1_median', 'auth_cite_freq_2_median']
+
+#features += ['temp6']
+            
+to_predict = 'link' # Name of column to classify
+# Create input data
+X_train = train[features]
+y_train = train[to_predict]
+
+X_test = test[features]
+if dev_mode:
+    y_test = test[to_predict]
+
+
+# Random forest classification
+predictor = RandomForestClassifier(n_estimators=200, max_depth=9)
+predictor.fit(X_train, y_train)
+# Make predictions
+y_train_pred = predictor.predict(X_train)
+#y_train_pred_proba = predictor.predict_proba(X_train)
+y_test_pred = predictor.predict(X_test)
+#y_test_pred_proba = predictor.predict_proba(X_test)
+
+# Compute accuracy
+print ('[Train] Accuracy on random forest is {acc}'.format(acc=(y_train == y_train_pred).mean()))
+if dev_mode:
+    print ('[Test] Accuracy on random forest is {acc}'.format(acc=(y_test == y_test_pred).mean()))
+
+
+
+# Write test prediction in data folder
+if not dev_mode:
+    write_submit(y_test_pred, name_suffix = '_5')
