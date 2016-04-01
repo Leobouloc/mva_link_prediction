@@ -1,17 +1,23 @@
+"""This project is written in Python 3.5"""
+"""Note: this file is written to run by blocks of code like iPython"""
+"""The first block contains many functions, each function finds a particular
+    group of features, you will find in it their corresponding names"""
+"""After the first block are the blocks to load and calculate features using
+    the functions in the first block"""
+"""The comments on the code are sometime writen in function print"""
+
 import numpy as np
 import pandas as pd
 
-from nltk.corpus import stopwords
 from scipy.sparse import lil_matrix
 from sklearn.preprocessing import normalize
 
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
 
 import itertools  
-import os
 import sys
 
 data_folder = '/home/chau/mva_link_prediction/data/'
@@ -53,18 +59,7 @@ def create_train_test(dev_mode=True):
 
 def remove_stopwords(node_info):
     '''Removes stopwords FROM ABSTRACT (not titles) in node_info'''
-    #all_abstract = np.array(' '.join(node_info.abstract.as_matrix()).split())
-    #all_abstract = pd.Series(all_abstract)
-    #word_count = all_abstract.value_counts()
-    #my_stopwords = list(word_count[word_count >= word_count.quantile(0.999)].index)
     my_stopwords = ENGLISH_STOP_WORDS
-    #    my_stopwords.extend(stopwords.words('english'))
-    #    my_stopwords = np.array(my_stopwords)
-    #    
-    #    for word in my_stopwords:
-    #        node_info.abstract = node_info.abstract.str.replace(' ' + word + ' ', ' ')
-    #        node_info.abstract = node_info.abstract.str.rstrip(' ' + word)
-    #        node_info.abstract = node_info.abstract.str.lstrip(word + ' ')
         
     node_info['abstract'] = node_info['og_abstract'].apply(lambda x: ' '.join([y for y in x.split() if y not in my_stopwords]))
     node_info['title'] = node_info['og_title'].apply(lambda x: ' '.join([y for y in x.split() if y not in my_stopwords]))
@@ -90,17 +85,17 @@ def create_features(table):
     
     # Count co_occurence of authors
     table['author_1_in_author_2'] = table.apply(lambda x: sum([y in x.authors_1 for y in x.authors_2]), axis=1)
-    
-    # Count occurence of abstract 2 in title 1, abstract 1 in title 2 (and reversely)
-#    table['temp7'] = table.apply(lambda x: len(set([y for y in x.abstract_1.split() if y in x.title_2.split()])), axis=1)
-#    table['temp8'] = table.apply(lambda x: len(set([y for y in x.abstract_2.split() if y in x.title_1.split()])), axis=1)
-#    table['temp9'] = table.temp7 + table.temp8
- 
-    # Count occurence of title 2 in abstract 1, title 1 in abstract 2 (and reversely)
-#    table['temp10'] = table.apply(lambda x: len(set([y for y in x.title_2.split() if y in x.abstract_1.split()])), axis=1)
-#    table['temp11'] = table.apply(lambda x: len(set([y for y in x.title_1.split() if y in x.abstract_2.split()])), axis=1)
-#    table['temp12'] = table.temp10 + table.temp11
-    
+
+#    # Count occurence of abstract 2 in title 1, abstract 1 in title 2 (and reversely)
+#    table['abstract_1_in_title_2'] = table.apply(lambda x: len(set([y for y in x.abstract_1.split() if y in x.title_2.split()])), axis=1)
+#    table['abstract_2_in_title_1'] = table.apply(lambda x: len(set([y for y in x.abstract_2.split() if y in x.title_1.split()])), axis=1)
+#    table['abstract_in_title'] = table.temp7 + table.temp8
+# 
+#    # Count occurence of title 2 in abstract 1, title 1 in abstract 2 (and reversely)
+#    table['title_2_in_abstract_1'] = table.apply(lambda x: len(set([y for y in x.title_2.split() if y in x.abstract_1.split()])), axis=1)
+#    table['title_1_in_abstract_2'] = table.apply(lambda x: len(set([y for y in x.title_1.split() if y in x.abstract_2.split()])), axis=1)
+#    table['title_in_abstract'] = table.temp10 + table.temp11
+       
     # Same journal (significant)
     table['is_same_journal'] = table.journal_1 == table.journal_2
     
@@ -157,18 +152,8 @@ def create_word_count(node_info):
             print('[Creating Word Matrix] ind={ind}'.format(ind=ind))
         for word in abstract.split():
             word_mat[ind, words_to_ind_dict[word]] += 1
-#        if(word in synonym):
-#            word_synonym = list(synonym[word].keys())
-#            for vocab in word_synonym:
-#                if(word != vocab)and(vocab in words_to_ind_dict):
-#                    word_mat[ind, words_to_ind_dict[vocab]] += 1
     
-    # Normalise word_mat # 0: word occurence in corpus; 1: number of words in abstract
-    word_count = word_mat.sum(0)
-    # (by total number of occurence of each word)
     word_mat_norm = normalize(normalize(word_mat, norm='l1', axis=0))
-    # (both)
-    #word_mat_norm = normalize(normalize(word_mat, norm='l1', axis=0), norm='l1', axis=1) # 0: word occurence; 1: number of words
     return word_mat, word_mat_norm
 
 
@@ -180,8 +165,6 @@ def make_link_mats(node_info, train):
         idx2 = link_mat_idx[row['id_2']]
         if bool(row['link']):
             link_mat[idx1, idx2] = 1
-    #    else:
-    #        link_mat[idx1, idx2] = -1
             
     link_mat = link_mat + link_mat.T
     link_mat_2 = link_mat.dot(link_mat)
@@ -196,7 +179,6 @@ def make_link_mats(node_info, train):
         
     return link_mat_idx, link_mat, link_mat_2, link_mat_3, link_mat_4
 
-
 def idxs1(row, link_mat_idx):
     idx1 = link_mat_idx[row['id_1']]
     return idx1
@@ -204,9 +186,7 @@ def idxs1(row, link_mat_idx):
 def idxs2(row, link_mat_idx):
     idx2 = link_mat_idx[row['id_2']]
     return idx2
-    
-
-    
+       
 def make_graph_features(table, link_mat_idx, link_mat_2, link_mat_3, link_mat_4):
     all_idxs1 = table.apply(lambda row: idxs1(row, link_mat_idx), axis=1)    
     all_idxs2 = table.apply(lambda row: idxs2(row, link_mat_idx), axis=1)   
@@ -356,7 +336,7 @@ def write_submit(y_test_pred, name_suffix=None):
 
 
 
-# Set dev_mode to False for submission
+# Set dev_mode to False for submission, True to do experiment
 dev_mode = True
 
 
@@ -383,12 +363,7 @@ test = make_authors_features(test, authors_mat_norm)
 train = replace_authors_features(train, train)
 test = replace_authors_features(test, train)
 
-#%%
-import pickle
-print('Load synonym matrix')
-with open(code_folder + 'synonym.dat', 'rb') as f:
-    synonym = pickle.load(f)
-    
+   
 #%%
 # Create abstract word similarity metric (temp1)
 print ('Computing abstract word similarity')
@@ -396,12 +371,10 @@ word_mat, word_mat_norm = create_word_count(node_info)
 node_id_order = dict(zip(node_info.id, node_info.index))
 train['commonword'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
 test['commonword'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order), axis=1)
-#train['commonword_lin'] = train.apply(lambda x: kernel(x, word_mat_norm, node_id_order, 'lin'), axis=1)
-#test['commonword_lin'] = test.apply(lambda x: kernel(x, word_mat_norm, node_id_order, 'lin'), axis=1)
 
 #%%
 # Creating abstract tfidf simillarity (temp20)
-print ('In tfidf')
+print ('Computing tfidf feature')
 train, test = tfidf_ize(train, test, node_info)
 
 #%%
@@ -428,42 +401,59 @@ id_count.name = 'id_count'
 train = train.join(id_count, on='id_1').join(id_count, on='id_2', lsuffix='_1', rsuffix='__2')
 test = test.join(id_count, on='id_1').join(id_count, on='id_2', lsuffix='_1', rsuffix='__2')
 
+
 #%%
 import pickle
-print('Save all features')
-with open(code_folder + 'all_features.dat', 'wb') as f:
-    pickle.dump((train, test), f)
+print('Save all features for future use')
+if(dev_mode):
+    with open(code_folder + 'all_features_dev.dat', 'wb') as f:
+        pickle.dump((train, test), f)
+else:
+    with open(code_folder + 'all_features_final.dat', 'wb') as f:
+        pickle.dump((train, test), f)
     
     
+
+
 
 
     
 #%%
 import pickle
-print('Load all features')
-with open(code_folder + 'all_features.dat', 'rb') as f:
-    train, test = pickle.load(f)
-    
-
+print('Load all features from the last saving time')
+if(dev_mode):
+    with open(code_folder + 'all_features_dev.dat', 'rb') as f:
+        train, test = pickle.load(f)
+else:
+    with open(code_folder + 'all_features_final.dat', 'rb') as f:
+        train, test = pickle.load(f)
 
 
 
 
 #%%
-train = chau_features(train)
-test = chau_features(test)
-#%%
+#Best:
+#['commonword', 'commonlink_temp26', 'author_2_in_abstract_1', 'author_1_in_abstract_2','author_1_in_author_2']
+#RBF C=1, gamma=30
+
+
+#['commonword','commonlink_temp2', 'author_1_in_author_2', 'is_same_journal', 'time_difference']
+
+
+
+train2 = train[:15000]
+
 # Define features to use for classification
 features = []
 #features += ['commonword']
 
-#features += ['ngram_abstract_1_1','ngram_title_1_1', 'ngram_title_abstract_1_1']
-#features += ['ngram_abstract_2_2', 'ngram_title_2_2', 'ngram_title_abstract_2_2']
+features += ['ngram_abstract_1_1','ngram_title_1_1', 'ngram_title_abstract_1_1']
+features += ['ngram_abstract_2_2', 'ngram_title_2_2', 'ngram_title_abstract_2_2']
              
-#features += ['commonlink_temp26'] #High performance
-#features += ['commonlink_temp25'] #Very low performance
+features += ['commonlink_temp26'] #High performance
 
-#features += ['is_same_journal', 'time_difference']
+features += ['is_same_journal', 'time_difference']
+
 
 features += ['author_2_in_abstract_1', 'author_1_in_abstract_2']
 features += ['author_1_in_author_2']
@@ -471,8 +461,7 @@ features += ['author_1_in_author_2']
 #features += ['auth_cite_freq_1_max', 'auth_cite_freq_2_max']
 #features += ['auth_cite_freq_1_median', 'auth_cite_freq_2_median']
 
-#features += ['temp6']
-            
+           
 to_predict = 'link' # Name of column to classify
 # Create input data
 X_train = train[features]
@@ -483,22 +472,50 @@ if dev_mode:
     y_test = test[to_predict]
 
 
-# Random forest classification
-predictor = RandomForestClassifier(n_estimators=200, max_depth=9)
-predictor.fit(X_train, y_train)
-# Make predictions
-y_train_pred = predictor.predict(X_train)
-#y_train_pred_proba = predictor.predict_proba(X_train)
-y_test_pred = predictor.predict(X_test)
-#y_test_pred_proba = predictor.predict_proba(X_test)
+    predictors = [SVC(kernel='rbf', C=1.0, gamma=5.0),
+                  SVC(kernel='rbf', C=1.0, gamma=10.0),
+                  SVC(kernel='rbf', C=1.0, gamma=15.0),
+                  SVC(kernel='rbf', C=1.0, gamma=20.0),
+                  SVC(kernel='rbf', C=1.0, gamma=25.0),
+                  SVC(kernel='rbf', C=1.0, gamma=30.0),
+                  SVC(kernel='rbf', C=1.0, gamma=35.0),
+                  SVC(kernel='rbf', C=1.0, gamma=40.0),
+                  SVC(kernel='linear', C=1.0),
+                  RandomForestClassifier(n_estimators=100, n_jobs=4, max_depth=9),
+                  RandomForestClassifier(n_estimators=200, n_jobs=4, max_depth=9),
+                  RandomForestClassifier(n_estimators=300, n_jobs=4, max_depth=9),
+                  RandomForestClassifier(n_estimators=400, n_jobs=4, max_depth=9),
+                  RandomForestClassifier(n_estimators=500, n_jobs=4, max_depth=9),
+                  RandomForestClassifier(n_estimators=600, n_jobs=4, max_depth=9)]
+    names = ['RBF SVM gamma=5',
+             'RBF SVM gamma=10',
+             'RBF SVM gamma=15',
+             'RBF SVM gamma=20',
+             'RBF SVM gamma=25',
+             'RBF SVM gamma=30',
+             'RBF SVM gamma=35',
+             'RBF SVM gamma=40',
+             'linear SVM',
+             'random forest 200 estimators',
+             'random forest 400 estimators',
+             'random forest 600 estimators',]
+    
+    for (name, predictor) in zip(names, predictors):
+        predictor.fit(X_train, y_train)
+        # Make predictions
+        y_train_pred = predictor.predict(X_train)
+        y_test_pred = predictor.predict(X_test)
+        
+        # Compute accuracy
+        print ('[Train] Accuracy on {name} is {acc}'.
+                format(name=name, acc=(y_train == y_train_pred).mean()))
+        print ('[Test] Accuracy on {name} is {acc}'.
+                format(name=name, acc=(y_test == y_test_pred).mean()))
 
-# Compute accuracy
-print ('[Train] Accuracy on random forest is {acc}'.format(acc=(y_train == y_train_pred).mean()))
-if dev_mode:
-    print ('[Test] Accuracy on random forest is {acc}'.format(acc=(y_test == y_test_pred).mean()))
-
-
-
-# Write test prediction in data folder
-if not dev_mode:
+else:
+    # Choose the best classifier here
+    predictor = SVC(kernel='rbf', C=1.0, gamma=20.0)
+    predictor.fit(X_train, y_train)
+    # Make predictions
+    y_test_pred = predictor.predict(X_test)
     write_submit(y_test_pred, name_suffix = '_5')
