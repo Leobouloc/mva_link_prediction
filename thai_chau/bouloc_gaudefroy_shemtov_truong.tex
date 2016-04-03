@@ -80,7 +80,6 @@ The outline of this report is as follows. In Section \ref{sec:feature}, we prese
 
 \section{Feature engineering}
 \label{sec:feature}
-
 For our learning strategy, we compute features to describe the relationship between each pair of nodes in the citation network. The features belong to two levels of text and graph.
 
 \subsection{Text level: Shared relevant words}
@@ -88,7 +87,7 @@ For our learning strategy, we compute features to describe the relationship betw
 The reason to use this feature is based on a fact that two papers citing each other often belong to the same research field and therefore share the same set of some keywords. This feature is constructed mainly on the abstract field. We construct two types of features concerning common relevant words:
 \begin{itemize}
 \item \textbf{Bag-of-words (BoW) model}: a matrix with lines corresponding to documents and columns to words (ignoring stopwords) is created. The values in this matrix stand for how many times each word is present in each document. In order to introduce a notion of word weight as first proposed in \cite{sparck1972statistical}, each column is then normalized so that it sums to one. Now, to compute the similarity between two documents, we used the intersection kernel, which computes the sum of the element-wise minimum between two line vectors.
-\item \textbf{Term Frequency-Inverse Document Frequency (TF-IDF)}: We also constructed two TF-IDF features (\cite{Singhal:1996}, \cite{Wu:2008}) with the n-gram parameters of 1 and 2. In the experiments, we compare the performance of two types of feature at the text level.
+\item \textbf{Term Frequency-Inverse Document Frequency (TF-IDF)}: We also constructed two TF-IDF features (\cite{Singhal:1996}, \cite{Wu:2008}) with the n-gram parameters of 1 and 2. In the experiments, we compare the performance of two types of feature at the text level and find out that this feature itself contributes more to the classification performance.
 \end{itemize}
 \subsection{Graph level}
 \subsubsection{Number of shared citations}
@@ -97,7 +96,7 @@ In a citation network, this quantity represents the number of common neighbors i
 
 \subsubsection{Difference in publication time in the same journal}
 
-For this feature, we include two characteristics which are: whether two papers belong to the same journal and their difference in publication time. The assumption behind this is that in the same journal, the subjects of two papers are somehow related to each other because they are in the same field. And the probability that two papers have a link depends also on the publication time. We will later see in section \ref{sec:experiments} that using this feature alone does not have much impact given the fact that the network that we consider is non-oriented.
+For this feature, we include two characteristics which are: whether two papers belong to the same journal and their difference in publication time. The assumption behind this is that in the same journal, the subjects of two papers are somehow related to each other because they are in the same field. And the probability that two papers have a link depends also on the publication time. We will later see in section \ref{sec:experiments} that using this feature alone does not have much impact given the fact that the network that we consider is non-oriented. However, among the best feature selections that we found out, this feature is contained in some of them when being combined with others strong features.
 
 \subsubsection{Number of common authors}
 
@@ -114,7 +113,7 @@ The first feature is more important because an abstract usually does not mention
 \subsection{Experiment method}
 
 To classify the features, we chose to use Random Forest and SVM with linear and RBF kernels (the polynomial kernel was outperformed everytime therefore we chose to rule it out of the study).\\
-Due to the resource limitations, it takes too long to perform a cross-validation test on the whole dataset. Therefore, for each experiment, we extract randomly 100000 instances and make 4-fold cross validation. Although not all the data is used for each experiment, this seems to provide a sufficiently good compromise between training time and error estimation.
+Due to the resource limitations, it takes too long to perform a cross-validation test on the whole dataset, especially for the case of SVM with RBF kernel. Therefore, for each experiment, we extract randomly 100000 instances and make 4-fold cross validation. Although not all the data is used for each experiment, this provides a sufficiently good compromise between training time and error estimation.
 
 \subsection{Method to combine features (feature selection)}
 
@@ -137,7 +136,7 @@ Besides the choice of features, for the final step, the parameters used for each
 \subsection{Experimental results}
 \label{sec:result}
 \subsubsection{Feature selection}
-The first step of our feature selection method is to test on each individual type of features. Table \ref{tab:separate} shows the result for each separate feature group. Concerning the features at text level, the TD-IDF does not give a strong performance for this case although it is an empirically better feature than BoW for the document classification problem. At graph level, we can see that the number of common citations is the most valuable criterion even when not being combined with others. 
+The first step of our feature selection method is to test on each individual type of features. Table \ref{tab:separate} shows the result for each separate feature group. Concerning the features at text level, the TD-IDF yields a better performance than BoW. At graph level, we can see that the number of common citations is the most valuable criterion even when not being combined with others. 
 \begin{table}[t]
 	\label{tab:separate}
 	\centering
@@ -145,9 +144,9 @@ The first step of our feature selection method is to test on each individual typ
 	\begin{tabular}{|c|c|c|} \hline
 		Feature&Best classifier&CV accuracy\\ \hline
 		BoW&RF with 100 estimators&75.56\\ \hline
-		TF-IDF&RBF SVM with $\gamma=20$&66.52\\ \hline
+		TF-IDF&RBF SVM with $\gamma=20$&82.88\\ \hline
 		Common citations&RBF SVM with $\gamma=10$&\textbf{98.31}\\ \hline
-		Date difference&RF with 100 estimators&64.35\\ \hline
+		Date difference&RF with 20 estimators&64.35\\ \hline
 		Common authors&RBF SVM with $\gamma=5$&54.27\\ \hline
 	\end{tabular}
 \end{table}\\
@@ -161,10 +160,10 @@ The first step of our feature selection method is to test on each individual typ
 		\pbox{20cm}{BoW\\Common citations\\Common authors\\Date difference}&RBF SVM with $\gamma=40$&95.84\\ \hline
 	\end{tabular}
 \end{table}
-Next, we combine features in some groups: the one with two weakest features contains date difference and common authors. With the groups of valuable features BoW, TF-IDF and common citations, We tried all 4 combinations with some classifiers. Then, for each of these 4 combinations, we combined with weaker features to have a more robust model. Table 3.4.2 shows two best selections that we found out.
+Next, we combine features in some groups: the one with two weakest features contains date difference and common authors gives a performance of 65.27$\%$ with RBF SVM with $\gamma=20$. With the groups of valuable features BoW, TF-IDF and common citations, We tried all 4 combinations (containing more than one features) with some classifiers. Then, for each of these 4 combinations, we combined with weaker features. Table 3.4.2 shows two best selections that we found out.
 \subsubsection{Model tuning}
 As mentioned in Section \ref{sec:tuning}, we vary the number of estimators (trees) in RF and compute the CV accuracy (Figure 3.4.1) and and same thing with $\gamma$ in RBF SVM (Figure 3.4.2).\\
-We can see that as the number of estimators increases, the accuracy of RF converges to a certain value. In the case of RBF SVM, the CV accuracy tends to peak at a certain value and then decreases after that. The increment and decrease in accuracy of this classifer is not very clear, so we choose the one with highest accuracy possible for our final model.
+We can see that as the number of estimators increases, the accuracy of RF converges to a certain value. In the case of RBF SVM, the CV accuracy tends to peak at a certain value and then decreases after that. The increment and decrease in accuracy of SVM classifer is not very clear, so we choose the one with highest accuracy possible for our final model.
 
 \begin{figure}[htb]
 \begin{minipage}[b]{1.0\linewidth}
@@ -194,22 +193,22 @@ Our last experiment involves quantitative comparison between 3 types of classifi
 \end{minipage}
 \label{fig:classifier}
 \caption{CV accuracy of Random forest with varying number of estimators}
-\end{figure}
-For separate feature types in our first step. There is not any dominance between 3 classifiers for the best parameter sets. The random forest sometimes outperforms SVM classifier in some cases. However, for the combinations of features, the RBF SVM always has the best performance and the next one is linear SVM.
+\end{figure}\\
+It is shown that the linear SVM is always outperformed by other two classifiers. For separate feature types in our first step, There is not any dominance between RBF SVM and random forest. For the combinations of features, the RBF SVM always has the best performance comparing with the two others.
 
 \section{Some methods that did not work out}
 \label{sec:notwork}
 In this section, we present some methods that we tried but did not work well.
 \begin{itemize}
-\item \textbf{Addressing the synonyms by Word2Vec:} A problem that needs to be addressed is how to cluster synonyms. In all abstracts, there are words that are synonyms of each other, and using this additionnal information could be a great help. One major problem that we faced when trying to cluster is that the dataset does not contain a sufficiently large amount of text to feed into a Word2Vec mode. Therefore, we used an alternative solution: reuse a Word2Vec pre-trained model by Google in \cite{word2vecgg}. But this type of feature still did not have a significant contribution to the final model, probably because the most significant words for classifying are technical words, i.e. specifically the ones that would have needed a custom training. The CV accuracy is lower than the individual common author feature.
-\item \textbf{The use of Doc2Vec \cite{DBLP:LeM14}:} We also tried to capture some correlation between two document in each pair by a Doc2Vec model whose library is available in gensim 0.10.3. This approach also did not work out. A possible explanation is that at the level of text meaning, two papers that are cited in a pair do not share much correlation. Our use of Doc2Vec could not capture much difference between a cited and non-cited pair.
+\item \textbf{Addressing the synonyms by Word2Vec:} A problem that needs to be addressed is how to cluster synonyms. In all abstracts, there are words that are synonyms of each other, and using this additionnal information could be a great help. One major problem that we faced when trying to cluster is that the dataset does not contain a sufficiently large amount of text to feed into a Word2Vec mode. Therefore, we used an alternative solution: reusing a Word2Vec pre-trained model by Google in \cite{word2vecgg}. But this type of feature still did not have a significant contribution to the final model, probably because the most significant words for classifying are technical words, i.e. specifically the ones that would have needed a custom training. The CV accuracy is even lower than the individual common author feature for the best classifier.
+\item \textbf{The use of Doc2Vec \cite{DBLP:LeM14}:} We also tried to capture some correlation between two document in each pair by a Doc2Vec model whose library is available in gensim 0.10.3. This approach also did not work out. A possible explanation is that at the level of text meaning, two papers that are cited in a pair do not share much correlation. And therefore our use of Doc2Vec could not capture much difference between a cited and non-cited pair.
 \item \textbf{Citation link prediction of old and theoretical papers:} As mentioned above, our prediction of a link is mainly based on the similarity in a text and in a network. In reality, there may be the case when we have a paper which is quite old and is in a completely different domain but contains a significant theory for the current paper that cites to. This is the case that we could not handle well because almost all features that we chose favor the papers that are closely related to each other.
 \end{itemize}
 
 \section{Conclusion}
 \label{sec:conclusion}
-In the scope of this project, we managed to build a model that predicts the links based on the choice of appropriate features and classifiers. The criterion to choose the feature is the contribution to the performance of the system. Final result shows that graph features play a significant role in link prediction and must be present in the final chosen features. Text features does not have a big contribution when being used alone but when being combined with graph features, it can improve the performance of the model comparing with the use of only graph features.\\
-One of the drawback of our approach lies at the feature selection. Due to the need for determining the best classifier for each feature set, this process is almost infeasible to conduct completely automatically. We hope to find a better solution in the near future.
+In the scope of this project, we managed to build a model that predicts the links based on the choice of appropriate features and classifiers. The criterion to choose the feature is the contribution to the performance of the system. Final result shows that graph features play a significant role in link prediction and must be present in the final chosen features. Text features does not have a big contribution when being used alone but when being combined with graph features, it can improve the performance of the model comparing with the use of only graph features. The random forest and SVM with RBF kernel have good efficiency to classify these types of features.\\
+One of the drawback of our approach lies at the feature selection. Due to the need for determining the best classifier for each feature set, our approach is exhaustive search and this process is almost infeasible to conduct completely automatically due to the need of saving execution time. We hope to find a better solution in the near future.
 
 % References should be produced using the bibtex program from suitable
 % BiBTeX files (here: strings, refs, manuals). The IEEEbib.bst bibliography
