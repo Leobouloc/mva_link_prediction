@@ -1,0 +1,5 @@
+#!/bin/bash
+pdflatex bouloc_gaudefroy_shemtov_truong
+bibtex bouloc_gaudefroy_shemtov_truong
+pdflatex bouloc_gaudefroy_shemtov_truong
+pdflatex bouloc_gaudefroy_shemtov_truong
